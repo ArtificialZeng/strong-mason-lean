@@ -24,7 +24,7 @@ import Mathlib.Data.Fintype.Card
 import Mathlib.Algebra.MvPolynomial.Rename
 import Mathlib.Data.Nat.Factorial.Basic
 import Mathlib.Combinatorics.Matroid.Map
-import ChallengeDeps
+import Mathlib
 
 -- The original package sets this option for every source module.
 set_option autoImplicit false
@@ -3793,15 +3793,14 @@ section SingleFileModule25
 
 set_option autoImplicit false
 
-open LeanEval.Combinatorics.StrongMason
 
 namespace Submission
 
 theorem strong_mason_conjecture {α : Type*} (M : Matroid α) [M.Finite]
     (k : ℕ) (hk : 0 < k) (hkn : k < M.E.ncard) :
-    independentSetCount M (k - 1) * independentSetCount M (k + 1) *
+    {I ∈ Set.powersetCard α (k - 1) | M.Indep I}.ncard * {I ∈ Set.powersetCard α (k + 1) | M.Indep I}.ncard *
           (k + 1) * (M.E.ncard - k + 1) ≤
-      independentSetCount M k ^ 2 * k * (M.E.ncard - k) := by
+      {I ∈ Set.powersetCard α k | M.Indep I}.ncard ^ 2 * k * (M.E.ncard - k) := by
   exact StrongMasonAudit.strong_mason_count M k hk hkn
 
 #print axioms strong_mason_conjecture
