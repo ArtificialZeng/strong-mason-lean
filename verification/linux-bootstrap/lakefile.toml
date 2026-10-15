@@ -1,0 +1,4 @@
+name = "strongMasonVerifierBootstrap"
+
+# Trusted empty package used only for installing elan through lean-action.
+# No proof source or custom Lake script is elaborated here.
