@@ -14,7 +14,7 @@ copy of the pinned official workspace. NEW_DIR must not exist and must be
 outside DIR. The source package and this project's upstream/ are not changed.
 
 Requires Linux with functioning Landlock, elan, Go 1.25.12, cargo, Python 3,
-git, curl, a C compiler, make, tar and unzip. No hosted submission is made.
+git, curl, a C compiler, make, tar, unzip, which and ldd. No hosted submission is made.
 EOF
 }
 
@@ -30,7 +30,7 @@ while (($#)); do
 done
 [[ -n "$verification_submission_arg" && -n "$verification_root_arg" ]] || { usage >&2; exit 2; }
 [[ $(uname -s) == Linux ]] || { printf '%s\n' 'This verifier requires Linux; no replay was attempted.' >&2; exit 2; }
-for verification_cmd in git python3 go cargo rustc elan lake lean curl cc make tar unzip sha256sum tee; do
+for verification_cmd in git python3 go cargo rustc elan lake lean curl cc make tar unzip sha256sum tee which ldd; do
   command -v "$verification_cmd" >/dev/null || { printf 'Missing prerequisite: %s\n' "$verification_cmd" >&2; exit 2; }
 done
 [[ $(GOTOOLCHAIN=local go env GOVERSION) == go1.25.12 ]] || { printf '%s\n' 'Use the frozen CI Go version 1.25.12.' >&2; exit 2; }
@@ -131,6 +131,29 @@ verification_clone_pin() {
   git -C "$verification_dir" checkout --detach "$verification_pin" || return $?
   [[ $(git -C "$verification_dir" rev-parse HEAD) == "$verification_pin" ]]
 }
+
+verification_assert_lean_version() {
+  local verification_expected=$1
+  local verification_lean_version verification_lake_version
+  verification_lean_version=$(lean --version) || return $?
+  verification_lake_version=$(lake --version) || return $?
+  printf '%s\n%s\n' "$verification_lean_version" "$verification_lake_version"
+  if [[ "$verification_lean_version" != *"version $verification_expected,"* ||
+        "$verification_lake_version" != *"(Lean version $verification_expected)"* ]]; then
+    printf 'Expected actual Lean and Lake toolchain %s; ensure elan shims precede direct toolchain binaries on PATH.\n' "$verification_expected" >&2
+    return 2
+  fi
+}
+
+verification_build_lean_tool() {
+  local verification_dir=$1 verification_expected=$2 verification_target=$3
+  (
+    cd "$verification_dir" || return $?
+    verification_assert_lean_version "$verification_expected" || return $?
+    lake build "$verification_target"
+  )
+}
+
 verification_stage benchmark-checkout verification_clone_pin \
   https://github.com/leanprover/lean-eval.git "$verification_benchmark_pin" "$verification_benchmark"
 
@@ -198,12 +221,12 @@ verification_stage exporter-checkout verification_clone_pin \
 # defaults cannot read 4.32.2 olean headers.
 cp "$verification_benchmark/lean-toolchain" "$verification_tools/lean4export/lean-toolchain"
 [[ $(cat "$verification_tools/lean4export/lean-toolchain") == "$verification_toolchain" ]]
-verification_stage exporter-build bash -euo pipefail -c 'cd "$1"; lake build lean4export' _ "$verification_tools/lean4export"
+verification_stage exporter-build verification_build_lean_tool "$verification_tools/lean4export" 4.32.2 lean4export
 verification_stage comparator-checkout verification_clone_pin \
   https://github.com/leanprover/comparator.git "$verification_comparator_pin" "$verification_tools/comparator"
 # Keep comparator's own pinned Lean 4.30.0-rc2 toolchain, as frozen CI does.
 [[ $(cat "$verification_tools/comparator/lean-toolchain") == leanprover/lean4:v4.30.0-rc2 ]]
-verification_stage comparator-build bash -euo pipefail -c 'cd "$1"; lake build comparator' _ "$verification_tools/comparator"
+verification_stage comparator-build verification_build_lean_tool "$verification_tools/comparator" 4.30.0-rc2 comparator
 verification_stage nanoda-checkout verification_clone_pin \
   https://github.com/robsimmons/nanoda_lib.git "$verification_nanoda_pin" "$verification_tools/nanoda"
 verification_stage nanoda-build bash -euo pipefail -c 'cd "$1"; cargo build --release' _ "$verification_tools/nanoda"
