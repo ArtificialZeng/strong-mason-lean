@@ -51,7 +51,7 @@ variable {ι : Type*}
 
 /-- Every coefficient of a real multivariate polynomial is nonnegative. -/
 def NonnegativeCoefficients (p : MvPolynomial ι ℝ) : Prop :=
-  ∀ m, 0 ≤ coeff m p
+  ∀ m, 0 ≤ MvPolynomial.lcoeff ℝ m p
 
 theorem eval_nonneg_of_nonnegativeCoefficients
     {p : MvPolynomial ι ℝ} (hp : NonnegativeCoefficients p)
@@ -98,6 +98,7 @@ theorem NonnegativeCoefficients.pderiv
     {p : MvPolynomial ι ℝ} (hp : NonnegativeCoefficients p) (i : ι) :
     NonnegativeCoefficients (pderiv i p) := by
   intro m
+  simp only [MvPolynomial.lcoeff_apply]
   rw [coeff_pderiv]
   exact mul_nonneg (hp _) (by positivity)
 
@@ -289,7 +290,7 @@ theorem independentMonomial_nonnegative (n : ℕ) (I : Finset α) :
     NonnegativeCoefficients (independentMonomial n I) := by
   classical
   intro m
-  simp only [independentMonomial, coeff_monomial]
+  simp only [MvPolynomial.lcoeff_apply, independentMonomial, coeff_monomial]
   split_ifs <;> norm_num
 
 theorem independentMonomial_eq_product (n : ℕ) (I : Finset α) :
@@ -315,15 +316,15 @@ theorem independencePolynomial_nonnegative (M : Matroid α) [M.Finite] :
     NonnegativeCoefficients (independencePolynomial M) := by
   classical
   intro m
-  simp only [independencePolynomial, coeff_sum]
+  simp only [MvPolynomial.lcoeff_apply, independencePolynomial, coeff_sum]
   exact Finset.sum_nonneg fun I _ => independentMonomial_nonnegative M.E.ncard I m
 
 @[simp] theorem coeff_independencePolynomial_exponent (M : Matroid α) [M.Finite]
     (I : Finset α) :
-    coeff (independentExponent M.E.ncard I) (independencePolynomial M) =
+    MvPolynomial.lcoeff ℝ (independentExponent M.E.ncard I) (independencePolynomial M) =
       if M.Indep (I : Set α) then 1 else 0 := by
   classical
-  simp only [independencePolynomial, coeff_sum, independentMonomial, coeff_monomial]
+  simp only [MvPolynomial.lcoeff_apply, independencePolynomial, coeff_sum, independentMonomial, coeff_monomial]
   have hexp (J : Finset α) :
       independentExponent M.E.ncard J = independentExponent M.E.ncard I ↔ J = I :=
     (independentExponent_injective M.E.ncard).eq_iff
@@ -731,12 +732,12 @@ noncomputable def homogenizingDerivative (a : ℕ) (p : MvPolynomial (Option α)
 
 @[simp] theorem coeff_homogenizingDerivative_exponent (M : Matroid α) [M.Finite]
     (a : ℕ) (I : Finset α) :
-    coeff (independentExponent (M.E.ncard - a) I)
+    MvPolynomial.lcoeff ℝ (independentExponent (M.E.ncard - a) I)
       (homogenizingDerivative a (independencePolynomial M)) =
       if M.Indep (I : Set α) then ((M.E.ncard - I.card).descFactorial a : ℝ) else 0 := by
   classical
   rw [homogenizingDerivative_independencePolynomial]
-  simp only [coeff_sum, independentMonomial, coeff_smul, coeff_monomial]
+  simp only [MvPolynomial.lcoeff_apply, coeff_sum, independentMonomial, coeff_smul, coeff_monomial]
   have hexp (J : Finset α) :
       independentExponent (M.E.ncard - a) J = independentExponent (M.E.ncard - a) I ↔ J = I :=
     (independentExponent_injective (M.E.ncard - a)).eq_iff
@@ -748,7 +749,7 @@ noncomputable def homogenizingDerivative (a : ℕ) (p : MvPolynomial (Option α)
     homogenizingDerivative a (independencePolynomial M) ≠ 0 := by
   intro hz
   have h := coeff_homogenizingDerivative_exponent M a ∅
-  rw [hz, coeff_zero] at h
+  rw [hz, map_zero] at h
   have hpos : (0 : ℝ) < (M.E.ncard.descFactorial a : ℝ) :=
     Nat.cast_pos.mpr (Nat.descFactorial_pos.mpr ha)
   have hi : M.Indep (↑(∅ : Finset α) : Set α) := by simp only [Finset.coe_empty]; exact M.empty_indep
@@ -777,7 +778,7 @@ noncomputable def homogenizingDerivative (a : ℕ) (p : MvPolynomial (Option α)
   | zero => exact independencePolynomial_homogeneous M
   | succ a ih =>
     rw [homogenizingDerivative_succ]
-    convert ih.pderiv using 1; omega
+    convert ih.pderiv using 1 <;> omega
 
  theorem homogenizingDerivative_independencePolynomial_nonnegative
     (M : Matroid α) [M.Finite] (a : ℕ) :
@@ -1728,6 +1729,7 @@ theorem NonnegativeCoefficients.directionalDerivative
     {v : ι → ℝ} (hv : ∀ i, 0 ≤ v i) :
     NonnegativeCoefficients (directionalDerivative v p) := by
   intro m
+  simp only [MvPolynomial.lcoeff_apply]
   unfold StrongMasonAudit.directionalDerivative
   rw [coeff_sum]
   simp only [coeff_smul, smul_eq_mul]
@@ -2782,15 +2784,16 @@ theorem formalHessian_eq_coeff_of_homogeneous_two
     {ι : Type*} (p : MvPolynomial ι ℝ) (hp : p.IsHomogeneous 2)
     (w : ι → ℝ) (i j : ι) :
     formalHessian p w i j =
-      coeff (Finsupp.single i 1 + Finsupp.single j 1) p *
+      MvPolynomial.lcoeff ℝ (Finsupp.single i 1 + Finsupp.single j 1) p *
         (if i = j then 2 else 1) := by
   classical
+  simp only [MvPolynomial.lcoeff_apply]
   have hzero : (pderiv i (pderiv j p)).IsHomogeneous 0 := by
     simpa using (hp.pderiv (i := j)).pderiv (i := i)
-  have heq : pderiv i (pderiv j p) = C (coeff 0 (pderiv i (pderiv j p))) :=
+  have heq : pderiv i (pderiv j p) = C (MvPolynomial.lcoeff ℝ 0 (pderiv i (pderiv j p))) :=
     totalDegree_eq_zero_iff_eq_C.mp ((totalDegree_zero_iff_isHomogeneous ι).mpr hzero)
   change eval w (pderiv i (pderiv j p)) = _
-  rw [heq, eval_C, coeff_pderiv, coeff_pderiv]
+  rw [heq, eval_C, MvPolynomial.lcoeff_apply, coeff_pderiv, coeff_pderiv]
   by_cases hij : i = j
   · subst j
     norm_num
@@ -2886,7 +2889,7 @@ theorem formalHessian_homogenizingDerivative_independencePolynomial
     simpa only [hcard, hdiff] using
       homogenizingDerivative_independencePolynomial_homogeneous M (n - 2)
   have hc (I : Finset α) :
-      coeff (independentExponent 2 I)
+      MvPolynomial.lcoeff ℝ (independentExponent 2 I)
         (homogenizingDerivative (n - 2) (independencePolynomial M)) =
       if M.Indep (I : Set α) then ((n - I.card).descFactorial (n - 2) : ℝ) else 0 := by
     simpa only [hcard, hdiff] using coeff_homogenizingDerivative_exponent M (n - 2) I
@@ -3452,8 +3455,9 @@ theorem directionalDerivative_single_basis [Fintype ι] [DecidableEq ι] (i : ι
 homogeneity or coefficient-sign assumption. -/
 theorem coeff_iteratedPartialDerivative_replicate
     (i : ι) (a : ℕ) (p : MvPolynomial ι ℝ) (m : ι →₀ ℕ) :
-    coeff m (iteratedPartialDerivative (List.replicate a i) p) =
-      coeff (m + Finsupp.single i a) p * ((m i + a).descFactorial a : ℝ) := by
+    MvPolynomial.lcoeff ℝ m (iteratedPartialDerivative (List.replicate a i) p) =
+      MvPolynomial.lcoeff ℝ (m + Finsupp.single i a) p * ((m i + a).descFactorial a : ℝ) := by
+  simp only [MvPolynomial.lcoeff_apply]
   induction a generalizing m with
   | zero => simp [iteratedPartialDerivative]
   | succ a ih =>
@@ -3497,9 +3501,9 @@ noncomputable def binaryExponent (n j : ℕ) : Bool →₀ ℕ :=
 
 @[simp] theorem coeff_binaryCountPolynomial_exponent (n : ℕ) (I : ℕ → ℕ)
     (j : ℕ) (hj : j ≤ n) :
-    coeff (binaryExponent n j) (binaryCountPolynomial n I) = (I j : ℝ) := by
+    MvPolynomial.lcoeff ℝ (binaryExponent n j) (binaryCountPolynomial n I) = (I j : ℝ) := by
   rw [binaryCountPolynomial_eq_monomial]
-  simp only [coeff_sum, coeff_monomial, (binaryExponent_injective n).eq_iff]
+  simp only [MvPolynomial.lcoeff_apply, coeff_sum, coeff_monomial, (binaryExponent_injective n).eq_iff]
   simp [Finset.mem_range.mpr (by omega : j < n + 1)]
 
 /-- A convenient two-block coordinate derivative. -/
@@ -3522,7 +3526,7 @@ noncomputable def binaryPartialDerivative (a b : ℕ) (p : MvPolynomial Bool ℝ
     eval (0 : Bool → ℝ) (binaryPartialDerivative a b (binaryCountPolynomial n I)) =
       (I b : ℝ) * (a.factorial : ℝ) * (b.factorial : ℝ) := by
   rw [eval_zero]
-  change coeff 0 (binaryPartialDerivative a b (binaryCountPolynomial n I)) = _
+  change MvPolynomial.lcoeff ℝ 0 (binaryPartialDerivative a b (binaryCountPolynomial n I)) = _
   simp only [binaryPartialDerivative, coeff_iteratedPartialDerivative_replicate,
     zero_add, Finsupp.zero_apply, Finsupp.single_eq_of_ne (by decide : true ≠ false),
     Nat.descFactorial_self]
